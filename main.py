@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 
-from nn import NeuralNetwork
+from nnclass import NeuralNetwork
 
 device = (
     torch.accelerator.current_accelerator().type
@@ -43,6 +43,10 @@ for epoch in range(50):
     loss.backward()
     optimizer.step()
 
+# add noise
+noise = torch.randn_like(X_test) * 0.1
+X_test_noisy = X_test + noise
+
 # evaluation
 with torch.no_grad():
     preds = model(X_test)
@@ -50,3 +54,11 @@ with torch.no_grad():
 
     accuracy = (preds == y_test).float().mean()
     print("Accuracy:", accuracy.item())
+
+# evaluate on noisy data
+with torch.no_grad():
+    preds_noisy = model(X_test_noisy)
+    preds_noisy = (preds_noisy > 0.5).float()
+
+    accuracy_noisy = (preds_noisy == y_test).float().mean()
+    print("Accuracy with noise:", accuracy_noisy.item())
