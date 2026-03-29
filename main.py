@@ -3,6 +3,8 @@ import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 
+from nn import NeuralNetwork
+
 device = (
     torch.accelerator.current_accelerator().type
     if torch.accelerator.is_available()
@@ -20,10 +22,31 @@ robot_dist = np.random.normal(1.0, 0.3, N)
 x = np.stack([temp, gas, occupancy, robot_dist], axis=1)
 y = ((temp > 27) | (gas > 0.3) | (occupancy > 2) | (robot_dist < 0.5)).astype(int)
 
-X = torch.tensor(x, dtype=torch.float32)
+X = torch.tensor(x, dtype=torch.float32).to(device)
 i = torch.sensor(y, dtype=torch.float32).unsqueeze(1)
 
 train_size = int(0.8 * N)
 
 X_train, X_test = X[:train_size], X[train_size:]
 y_train, y_test = y[:train_size], y[train_size:]
+
+model = NeuralNetwork().to(device)
+
+criterion = nn.BCELoss()
+optimizer = optim.Adam(model.parameters(), lr=0.01)
+
+# training loop
+for epoch in range(50):
+    optimizer.zero_grad()
+    outputs = model(X_train)
+    loss = criterion(outputs, y_train)
+    loss.backward()
+    optimizer.step()
+
+# evaluation
+with torch.no_grad():
+    preds = model(X_test)
+    preds = (preds > 0.5).float()
+
+    accuracy = (preds == y_test).float().mean()
+    print("Accuracy:", accuracy.item())
